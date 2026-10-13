@@ -1,1 +1,1135 @@
 
+<!DOCTYPE html>
+<html lang="ru" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starters X — Halloween Server Edition 🎃</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        spooky: {
+                            orange: '#ff7518',
+                            purple: '#8a2be2',
+                            dark: '#0c0714',
+                            card: '#160d27',
+                            bubbleOut: '#4a154b',
+                            bubbleIn: '#231238',
+                            hover: '#2a1645'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- PeerJS for P2P Realtime Messaging -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            background-color: #0c0714;
+        }
+        .spooky-font {
+            font-family: 'Creepster', cursive;
+        }
+        .spooky-bg {
+            background-color: #0c0714;
+            background-image: radial-gradient(#231238 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .neon-glow-orange {
+            box-shadow: 0 0 15px rgba(255, 117, 24, 0.4);
+        }
+        .neon-glow-purple {
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.4);
+        }
+        .neon-text-orange {
+            text-shadow: 0 0 8px rgba(255, 117, 24, 0.7);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 117, 24, 0.3);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 117, 24, 0.6);
+        }
+        canvas#halloween-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body class="bg-spooky-dark text-slate-100 h-full overflow-hidden flex flex-col font-sans">
+
+    <!-- Floating Spooky Particles Canvas -->
+    <canvas id="halloween-canvas"></canvas>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-4 right-4 z-50 transform translate-y-[-150%] transition-transform duration-300 bg-spooky-card text-slate-100 px-4 py-3 rounded-2xl shadow-2xl border border-orange-500/30 flex items-center space-x-3 pointer-events-none">
+        <i id="toast-icon" class="fa-solid fa-ghost text-orange-500 text-lg"></i>
+        <span id="toast-msg" class="text-sm font-medium"></span>
+    </div>
+
+    <!-- SMS Verification Code Modal -->
+    <div id="sms-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-spooky-card border border-orange-500/40 rounded-3xl p-6 shadow-2xl relative text-center">
+            <div class="w-16 h-16 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center text-3xl mx-auto mb-3 border border-orange-500/40">
+                <i class="fa-solid fa-comment-sms"></i>
+            </div>
+            <h3 class="text-xl font-bold text-orange-400 mb-1">Код подтверждения</h3>
+            <p class="text-xs text-slate-300 mb-4">СМС-код отправлен на ваш номер. Введите 6-значный код ниже:</p>
+            
+            <div class="bg-slate-900/80 p-3 rounded-xl border border-orange-500/20 text-orange-400 font-mono text-sm mb-4">
+                Тестовый код: <span id="generated-sms-code" class="font-bold underline text-white">123456</span>
+            </div>
+
+            <input type="text" id="sms-code-input" maxlength="6" placeholder="000000" 
+                class="w-full text-center text-2xl font-mono tracking-widest bg-slate-900 border border-orange-500/40 text-orange-400 py-3 rounded-xl focus:outline-none focus:border-orange-500 mb-4">
+
+            <div class="flex space-x-2">
+                <button id="cancel-sms-btn" class="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium">Отмена</button>
+                <button id="verify-sms-btn" class="w-1/2 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/30">Подтвердить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Authentication Screen -->
+    <div id="auth-screen" class="fixed inset-0 z-40 bg-spooky-dark flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-spooky-card border border-purple-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden z-10">
+            <div class="text-center mb-6">
+                <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-orange-500 to-purple-600 mx-auto flex items-center justify-center font-bold text-4xl text-white shadow-lg shadow-orange-500/30 mb-3 spooky-font border border-orange-400/40">
+                    🎃
+                </div>
+                <h1 class="text-3xl font-bold spooky-font tracking-wide bg-gradient-to-r from-orange-400 via-purple-300 to-orange-500 bg-clip-text text-transparent">Starters X</h1>
+                <p id="auth-subtitle" class="text-xs text-purple-300/80 mt-1">Server & GitHub Sync Edition</p>
+            </div>
+
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Никнейм (@username)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-at absolute left-3.5 top-3 text-orange-400 text-sm"></i>
+                        <input type="text" id="auth-username" required placeholder="spooky_ghost" 
+                            class="w-full bg-slate-900/80 border border-purple-500/30 text-slate-100 text-sm pl-9 pr-3 py-2.5 rounded-xl focus:outline-none focus:border-orange-500 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Номер телефона</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-phone absolute left-3.5 top-3 text-orange-400 text-sm"></i>
+                        <input type="tel" id="auth-phone" required placeholder="+380991234567" 
+                            class="w-full bg-slate-900/80 border border-purple-500/30 text-slate-100 text-sm pl-9 pr-3 py-2.5 rounded-xl focus:outline-none focus:border-orange-500 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Пароль</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3.5 top-3 text-orange-400 text-sm"></i>
+                        <input type="password" id="auth-password" required placeholder="••••••••" 
+                            class="w-full bg-slate-900/80 border border-purple-500/30 text-slate-100 text-sm pl-9 pr-3 py-2.5 rounded-xl focus:outline-none focus:border-orange-500 transition">
+                    </div>
+                </div>
+
+                <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-gradient-to-r from-orange-500 to-purple-600 hover:from-orange-600 hover:to-purple-700 active:scale-[0.99] text-white font-bold rounded-xl transition shadow-lg shadow-orange-500/25 flex items-center justify-center space-x-2 mt-2">
+                    <span id="auth-btn-text">Войти через СМС</span>
+                    <i class="fa-solid fa-ghost"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- GitHub & Server Settings Modal -->
+    <div id="github-modal" class="fixed inset-0 z-30 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="w-full max-w-lg bg-spooky-card border border-purple-500/40 rounded-3xl p-6 shadow-2xl relative">
+            <button id="close-github-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-xl font-bold text-orange-400 mb-1 flex items-center gap-2">
+                <i class="fa-brands fa-github text-2xl"></i> Сервер GitHub & P2P
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">Настройте GitHub Token для бесплатного хранения всех сообщений в репозитории/гисте или используйте PeerJS сервер!</p>
+
+            <form id="github-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">GitHub Personal Access Token (PAT)</label>
+                    <input type="password" id="github-pat-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+                        class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-orange-500 font-mono">
+                    <span class="text-[10px] text-slate-500 mt-1 block">Нужен токен с разрешениями `gist` для создания бесплатного облачного хранилища в GitHub.</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">GitHub Gist ID (опционально)</label>
+                    <input type="text" id="github-gist-input" placeholder="например: 8a92b3c1d4e5..."
+                        class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-orange-500 font-mono">
+                    <span class="text-[10px] text-slate-500 mt-1 block">Оставьте пустым, чтобы приложение автоматически создало новый Gist-сервер!</span>
+                </div>
+
+                <div class="p-3 bg-slate-900/90 rounded-2xl border border-purple-500/20 text-xs text-slate-300 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-orange-400">P2P Server Peer ID:</span>
+                        <span id="p2p-peer-id" class="font-mono text-purple-300 select-all">Подключение...</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Сообщения могут передаваться в реальном времени с устройства на устройство без задержек.</p>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button type="button" id="sync-github-now-btn" class="w-1/2 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-sm font-semibold border border-purple-500/30">
+                        <i class="fa-solid fa-rotate text-xs mr-1"></i> Синхронизировать
+                    </button>
+                    <button type="submit" class="w-1/2 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/30">
+                        Сохранить Настройки
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="profile-modal" class="fixed inset-0 z-30 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="w-full max-w-md bg-spooky-card border border-purple-500/40 rounded-3xl p-6 shadow-2xl relative">
+            <button id="close-profile-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="text-xl font-bold text-orange-400 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-user-pen"></i> Редактировать Профиль
+            </h3>
+
+            <form id="profile-form" class="space-y-4">
+                <div class="text-center mb-3">
+                    <div id="profile-preview-avatar" class="w-20 h-20 rounded-full bg-orange-500/20 text-3xl flex items-center justify-center border-2 border-orange-500 mx-auto mb-2 overflow-hidden">
+                        🎃
+                    </div>
+                    <p class="text-xs text-slate-400">Выберите хэллоуинский аватар или укажите URL фото:</p>
+                    
+                    <div class="flex justify-center space-x-2 mt-2" id="preset-avatars">
+                        <button type="button" data-avatar="🎃" class="w-8 h-8 bg-slate-800 hover:bg-orange-500/30 rounded-lg text-lg flex items-center justify-center border border-slate-700">🎃</button>
+                        <button type="button" data-avatar="👻" class="w-8 h-8 bg-slate-800 hover:bg-orange-500/30 rounded-lg text-lg flex items-center justify-center border border-slate-700">👻</button>
+                        <button type="button" data-avatar="🦇" class="w-8 h-8 bg-slate-800 hover:bg-orange-500/30 rounded-lg text-lg flex items-center justify-center border border-slate-700">🦇</button>
+                        <button type="button" data-avatar="💀" class="w-8 h-8 bg-slate-800 hover:bg-orange-500/30 rounded-lg text-lg flex items-center justify-center border border-slate-700">💀</button>
+                        <button type="button" data-avatar="🧛" class="w-8 h-8 bg-slate-800 hover:bg-orange-500/30 rounded-lg text-lg flex items-center justify-center border border-slate-700">🧛</button>
+                        <button type="button" data-avatar="🕷️" class="w-8 h-8 bg-slate-800 hover:bg-orange-500/30 rounded-lg text-lg flex items-center justify-center border border-slate-700">🕷️</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">Отображаемое имя</label>
+                    <input type="text" id="edit-display-name" required placeholder="Имя"
+                        class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-orange-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">Никнейм (@username)</label>
+                    <input type="text" id="edit-username" required placeholder="username"
+                        class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-orange-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">Ссылка на фото Аватарки (URL)</label>
+                    <input type="url" id="edit-avatar-url" placeholder="https://images.unsplash.com/..."
+                        class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-orange-500">
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/20">
+                    Сохранить изменения
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Group / Channel Modal -->
+    <div id="create-modal" class="fixed inset-0 z-30 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="w-full max-w-md bg-spooky-card border border-purple-500/40 rounded-3xl p-6 shadow-2xl relative">
+            <button id="close-create-modal" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 id="create-modal-title" class="text-xl font-bold text-orange-400 mb-1">Создать Группу</h3>
+            <p id="create-modal-subtitle" class="text-xs text-slate-400 mb-4">Общайтесь с друзьями в Starters X Хэллоуин сообществе</p>
+
+            <form id="create-group-channel-form" class="space-y-4">
+                <input type="hidden" id="create-type" value="group">
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">Название</label>
+                    <input type="text" id="create-name" required placeholder="Например: Хэллоуин Пати 🎃"
+                        class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-orange-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1">Описание (необязательно)</label>
+                    <textarea id="create-desc" rows="2" placeholder="О чем эта группа или канал..."
+                        class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-orange-500 resize-none"></textarea>
+                </div>
+
+                <button type="submit" class="w-full py-2.5 bg-gradient-to-r from-orange-500 to-purple-600 hover:from-orange-600 hover:to-purple-700 text-white font-bold rounded-xl transition shadow-lg shadow-orange-500/20">
+                    Создать
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Application UI -->
+    <div id="app" class="flex h-screen w-full overflow-hidden relative z-10">
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-full md:w-80 lg:w-96 bg-spooky-card border-r border-purple-500/20 flex flex-col h-full flex-shrink-0 transition-all duration-300">
+            
+            <!-- Sidebar Header / Current User Profile -->
+            <div class="p-3.5 flex items-center justify-between border-b border-purple-500/20 bg-slate-950/40">
+                <div class="flex items-center space-x-3 cursor-pointer" id="open-profile-btn">
+                    <div id="user-avatar" class="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-purple-600 flex items-center justify-center font-bold text-white text-base shadow border border-orange-400/40 overflow-hidden">
+                        🎃
+                    </div>
+                    <div class="min-w-0">
+                        <div id="user-display-name" class="font-bold text-sm text-slate-100 truncate">Загрузка...</div>
+                        <div id="user-display-phone" class="text-[11px] text-orange-400 truncate">...</div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-1">
+                    <!-- GitHub Server Trigger -->
+                    <button id="open-github-btn" title="Настройки GitHub Сервера" class="p-2 text-slate-300 hover:text-white rounded-full hover:bg-slate-800 transition">
+                        <i class="fa-brands fa-github text-base"></i>
+                    </button>
+                    <!-- Create Dropdown Trigger -->
+                    <button id="open-create-menu" title="Создать Группу или Канал" class="p-2 text-purple-300 hover:text-white rounded-full hover:bg-slate-800 transition">
+                        <i class="fa-solid fa-plus text-base"></i>
+                    </button>
+                    <!-- Logout -->
+                    <button id="logout-btn" title="Выйти" class="p-2 text-slate-400 hover:text-rose-400 rounded-full hover:bg-slate-800 transition">
+                        <i class="fa-solid fa-right-from-bracket text-base"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search & Filters -->
+            <div class="p-3 space-y-2">
+                <div class="relative flex items-center">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-500 text-sm"></i>
+                    <input type="text" id="search-chat-input" placeholder="Поиск контактов, групп..." 
+                        class="w-full bg-slate-950/80 text-sm text-slate-200 pl-10 pr-4 py-2 rounded-xl border border-purple-500/20 focus:outline-none focus:border-orange-500/60 transition placeholder-slate-500">
+                </div>
+
+                <!-- Chat Type Navigation Tabs -->
+                <div class="flex bg-slate-950/60 p-1 rounded-xl border border-purple-500/20 text-xs font-semibold text-slate-400">
+                    <button data-tab="all" class="tab-btn flex-1 py-1.5 rounded-lg text-center bg-orange-500 text-white shadow">Все</button>
+                    <button data-tab="direct" class="tab-btn flex-1 py-1.5 rounded-lg text-center hover:text-slate-200">Личные</button>
+                    <button data-tab="group" class="tab-btn flex-1 py-1.5 rounded-lg text-center hover:text-slate-200">Группы</button>
+                    <button data-tab="channel" class="tab-btn flex-1 py-1.5 rounded-lg text-center hover:text-slate-200">Каналы</button>
+                </div>
+            </div>
+
+            <!-- Chat List Container -->
+            <div id="chat-list" class="flex-1 overflow-y-auto divide-y divide-purple-500/10">
+                <!-- Dynamically populated -->
+            </div>
+        </aside>
+
+        <!-- Active Chat Main Area -->
+        <main id="chat-area" class="flex-1 flex flex-col h-full bg-spooky-dark relative w-full">
+            
+            <!-- Chat Header -->
+            <header id="chat-header" class="h-16 border-b border-purple-500/20 bg-spooky-card/90 backdrop-blur-md px-4 flex items-center justify-between z-10">
+                <div class="flex items-center space-x-3">
+                    <button id="back-btn" class="md:hidden p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800">
+                        <i class="fa-solid fa-arrow-left text-lg"></i>
+                    </button>
+
+                    <div id="active-chat-avatar" class="w-10 h-10 rounded-full bg-purple-900 border border-orange-500/40 flex items-center justify-center font-bold text-white text-base overflow-hidden">
+                        🎃
+                    </div>
+                    <div>
+                        <h2 id="active-chat-title" class="font-semibold text-slate-100 text-sm sm:text-base leading-tight">Выберите чат</h2>
+                        <p id="active-chat-status" class="text-xs text-orange-400">Starters X Server Edition</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-2 text-slate-400">
+                    <span id="server-status-badge" class="text-xs bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-full border border-purple-500/30 font-medium flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span id="server-type-label">GitHub Server Active</span>
+                    </span>
+                </div>
+            </header>
+
+            <!-- Messages Stream -->
+            <div id="messages-container" class="flex-1 overflow-y-auto p-4 spooky-bg space-y-3">
+                <div class="h-full flex flex-col items-center justify-center text-slate-500 text-sm space-y-3">
+                    <i class="fa-solid fa-ghost text-5xl text-purple-500/40 animate-bounce"></i>
+                    <p class="spooky-font text-xl text-orange-400/80 tracking-wider">Выберите чат для отправки сообщений!</p>
+                </div>
+            </div>
+
+            <!-- Input Footer -->
+            <footer class="p-3 bg-spooky-card/90 backdrop-blur-md border-t border-purple-500/20">
+                <form id="message-form" class="flex items-center space-x-2 max-w-5xl mx-auto">
+                    <div class="relative">
+                        <button type="button" id="emoji-btn" class="p-2.5 text-orange-400 hover:text-orange-300 rounded-xl hover:bg-slate-800 transition">
+                            <i class="fa-solid fa-face-smile text-lg"></i>
+                        </button>
+                        <div id="emoji-picker" class="hidden absolute bottom-12 left-0 bg-spooky-card border border-purple-500/40 p-2 rounded-2xl shadow-2xl flex space-x-1.5 text-xl z-30">
+                            <button type="button" class="emoji-opt hover:scale-125 transition">🎃</button>
+                            <button type="button" class="emoji-opt hover:scale-125 transition">👻</button>
+                            <button type="button" class="emoji-opt hover:scale-125 transition">🦇</button>
+                            <button type="button" class="emoji-opt hover:scale-125 transition">💀</button>
+                            <button type="button" class="emoji-opt hover:scale-125 transition">🕸️</button>
+                            <button type="button" class="emoji-opt hover:scale-125 transition">🍬</button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 bg-slate-950/80 rounded-2xl flex items-center px-4 py-1 border border-purple-500/20 focus-within:border-orange-500/60 transition">
+                        <textarea id="message-input" rows="1" placeholder="Написать сообщение..." disabled
+                            class="w-full bg-transparent text-slate-100 placeholder-slate-500 text-sm focus:outline-none resize-none max-h-32 py-2 my-auto"></textarea>
+                    </div>
+
+                    <button type="submit" id="send-btn" disabled class="w-11 h-11 bg-gradient-to-r from-orange-500 to-purple-600 hover:from-orange-600 hover:to-purple-700 disabled:opacity-40 active:scale-95 text-white rounded-2xl flex items-center justify-center transition shadow-lg shadow-orange-500/25 flex-shrink-0">
+                        <i class="fa-solid fa-paper-plane text-sm"></i>
+                    </button>
+                </form>
+            </footer>
+        </main>
+    </div>
+
+    <!-- JavaScript Application Logic & GitHub/P2P Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Environment Variables
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'starters-x-server';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "demo", authDomain: "demo.firebaseapp.com", projectId: "demo", storageBucket: "demo.appspot.com", messagingSenderId: "123", appId: "123"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // State Management
+        let currentUser = null;
+        let currentUserData = null;
+        let activeChat = null;
+        let allItemsList = [];
+        let activeTab = 'all';
+        let generatedSmsCode = '';
+        let pendingAuthData = null;
+        let messagesUnsubscribe = null;
+
+        // PeerJS P2P Connection
+        let peer = null;
+        let peerConnections = {};
+
+        // GitHub Gist Server Settings
+        let githubPat = localStorage.getItem('starters_x_github_pat') || '';
+        let githubGistId = localStorage.getItem('starters_x_github_gist') || '';
+
+        // UI DOM Elements
+        const toastEl = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+        const authScreen = document.getElementById('auth-screen');
+        const authForm = document.getElementById('auth-form');
+        const smsModal = document.getElementById('sms-modal');
+        const smsCodeInput = document.getElementById('sms-code-input');
+        const generatedSmsCodeEl = document.getElementById('generated-sms-code');
+
+        const profileModal = document.getElementById('profile-modal');
+        const openProfileBtn = document.getElementById('open-profile-btn');
+        const closeProfileModal = document.getElementById('close-profile-modal');
+        const profileForm = document.getElementById('profile-form');
+        const profilePreviewAvatar = document.getElementById('profile-preview-avatar');
+
+        const githubModal = document.getElementById('github-modal');
+        const openGithubBtn = document.getElementById('open-github-btn');
+        const closeGithubModal = document.getElementById('close-github-modal');
+        const githubForm = document.getElementById('github-form');
+        const githubPatInput = document.getElementById('github-pat-input');
+        const githubGistInput = document.getElementById('github-gist-input');
+
+        const createModal = document.getElementById('create-modal');
+        const openCreateMenuBtn = document.getElementById('open-create-menu');
+        const closeCreateModal = document.getElementById('close-create-modal');
+        const createGroupChannelForm = document.getElementById('create-group-channel-form');
+
+        const userDisplayName = document.getElementById('user-display-name');
+        const userDisplayPhone = document.getElementById('user-display-phone');
+        const userAvatar = document.getElementById('user-avatar');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        const chatListEl = document.getElementById('chat-list');
+        const searchChatInput = document.getElementById('search-chat-input');
+        const activeChatTitle = document.getElementById('active-chat-title');
+        const activeChatStatus = document.getElementById('active-chat-status');
+        const activeChatAvatar = document.getElementById('active-chat-avatar');
+        const messagesContainer = document.getElementById('messages-container');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const backBtn = document.getElementById('back-btn');
+        const sidebar = document.getElementById('sidebar');
+
+        function showToast(msg, isError = false) {
+            toastMsg.innerText = msg;
+            toastEl.classList.remove('translate-y-[-150%]');
+            setTimeout(() => {
+                toastEl.classList.add('translate-y-[-150%]');
+            }, 3000);
+        }
+
+        // --- Halloween Canvas Particles Animation ---
+        function initHalloweenCanvas() {
+            const canvas = document.getElementById('halloween-canvas');
+            const ctx = canvas.getContext('2d');
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            });
+
+            const particles = [];
+            const icons = ['🎃', '👻', '🦇', '💀', '🕷️'];
+
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    icon: icons[Math.floor(Math.random() * icons.length)],
+                    size: Math.random() * 16 + 14,
+                    speedY: - (Math.random() * 0.8 + 0.2),
+                    speedX: Math.sin(Math.random() * Math.PI) * 0.5,
+                    opacity: Math.random() * 0.5 + 0.2
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+                particles.forEach(p => {
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+                    if (p.y < -30) {
+                        p.y = height + 30;
+                        p.x = Math.random() * width;
+                    }
+                    ctx.globalAlpha = p.opacity;
+                    ctx.font = `${p.size}px serif`;
+                    ctx.fillText(p.icon, p.x, p.y);
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // --- PeerJS P2P Realtime Connection Setup ---
+        function initPeerJS(username) {
+            if (!username) return;
+            try {
+                const customPeerId = `starters_x_${username}`;
+                peer = new Peer(customPeerId);
+
+                peer.on('open', (id) => {
+                    document.getElementById('p2p-peer-id').innerText = id;
+                });
+
+                peer.on('connection', (conn) => {
+                    conn.on('data', (data) => {
+                        if (data && data.type === 'CHAT_MESSAGE') {
+                            showToast(`Новое сообщение от @${data.sender}! 🎃`);
+                            if (activeChat && (activeChat.username === data.sender || activeChat.id === data.roomId)) {
+                                appendSingleMessage(data);
+                            }
+                        }
+                    });
+                });
+            } catch (e) {
+                console.log("PeerJS initialization note:", e);
+            }
+        }
+
+        // --- GitHub API Gist Storage Engine ---
+        async function syncWithGitHubGist(dataToSave = null) {
+            if (!githubPat) return null;
+
+            try {
+                if (!githubGistId) {
+                    // Create new Gist as DB
+                    const res = await fetch('https://api.github.com/gists', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `token ${githubPat}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            description: "Starters X Halloween Messenger Server Storage",
+                            public: false,
+                            files: {
+                                "starters_x_db.json": {
+                                    content: JSON.stringify(dataToSave || { users: [], messages: [] }, null, 2)
+                                }
+                            }
+                        })
+                    });
+                    const gistData = await res.json();
+                    if (gistData.id) {
+                        githubGistId = gistData.id;
+                        localStorage.setItem('starters_x_github_gist', githubGistId);
+                        githubGistInput.value = githubGistId;
+                        showToast("GitHub Gist Сервер упешно создан! 🚀");
+                    }
+                    return gistData;
+                } else if (dataToSave) {
+                    // Update existing Gist
+                    await fetch(`https://api.github.com/gists/${githubGistId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `token ${githubPat}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            files: {
+                                "starters_x_db.json": {
+                                    content: JSON.stringify(dataToSave, null, 2)
+                                }
+                            }
+                        })
+                    });
+                    showToast("Данные сохранены в GitHub Gist! 🎃");
+                } else {
+                    // Fetch from Gist
+                    const res = await fetch(`https://api.github.com/gists/${githubGistId}`, {
+                        headers: { 'Authorization': `token ${githubPat}` }
+                    });
+                    const gistData = await res.json();
+                    if (gistData.files && gistData.files["starters_x_db.json"]) {
+                        return JSON.parse(gistData.files["starters_x_db.json"].content);
+                    }
+                }
+            } catch (err) {
+                console.error("GitHub API Error:", err);
+                showToast("Ошибка связи с GitHub API");
+            }
+            return null;
+        }
+
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth init error:", err);
+            }
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) return;
+            currentUser = user;
+
+            const savedUserData = localStorage.getItem('starters_halloween_user_' + user.uid);
+            if (savedUserData) {
+                currentUserData = JSON.parse(savedUserData);
+                showMainApp();
+            } else {
+                authScreen.classList.remove('hidden');
+            }
+        });
+
+        // Trigger SMS Modal Verification on Auth Submit
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value.trim().toLowerCase().replace('@', '');
+            const phone = document.getElementById('auth-phone').value.trim();
+            const password = document.getElementById('auth-password').value;
+
+            if (!username || !phone || !password) {
+                showToast('Заполните все поля!');
+                return;
+            }
+
+            pendingAuthData = { username, phone, password };
+            
+            generatedSmsCode = Math.floor(100000 + Math.random() * 900000).toString();
+            generatedSmsCodeEl.innerText = generatedSmsCode;
+            
+            smsModal.classList.remove('hidden');
+            smsModal.classList.add('flex');
+        });
+
+        document.getElementById('cancel-sms-btn').addEventListener('click', () => {
+            smsModal.classList.add('hidden');
+            smsModal.classList.remove('flex');
+        });
+
+        document.getElementById('verify-sms-btn').addEventListener('click', async () => {
+            const inputCode = smsCodeInput.value.trim();
+            if (inputCode !== generatedSmsCode) {
+                showToast('Неверный СМС-код!');
+                return;
+            }
+
+            smsModal.classList.add('hidden');
+            smsModal.classList.remove('flex');
+
+            const { username, phone, password } = pendingAuthData;
+            const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', username);
+            const userSnap = await getDoc(userDocRef);
+
+            if (userSnap.exists()) {
+                const data = userSnap.data();
+                currentUserData = data;
+                localStorage.setItem('starters_halloween_user_' + currentUser.uid, JSON.stringify(data));
+                showToast('С возвращением в Starters X! 🎃');
+            } else {
+                const newUser = {
+                    uid: currentUser.uid,
+                    username: username,
+                    displayName: username,
+                    phone: phone,
+                    password: password,
+                    avatar: '🎃',
+                    createdAt: new Date().toISOString()
+                };
+                await setDoc(userDocRef, newUser);
+                currentUserData = newUser;
+                localStorage.setItem('starters_halloween_user_' + currentUser.uid, JSON.stringify(newUser));
+                showToast('Аккаунт создан! 🎃');
+            }
+
+            showMainApp();
+        });
+
+        function showMainApp() {
+            authScreen.classList.add('hidden');
+            updateProfileUI();
+            initPeerJS(currentUserData.username);
+            loadAllChatsAndChannels();
+        }
+
+        function updateProfileUI() {
+            userDisplayName.innerText = currentUserData.displayName || '@' + currentUserData.username;
+            userDisplayPhone.innerText = currentUserData.phone || '@' + currentUserData.username;
+            
+            if (currentUserData.avatar && currentUserData.avatar.startsWith('http')) {
+                userAvatar.innerHTML = `<img src="${currentUserData.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                userAvatar.innerText = currentUserData.avatar || '🎃';
+            }
+        }
+
+        // GitHub Modal Handlers
+        openGithubBtn.addEventListener('click', () => {
+            githubPatInput.value = githubPat;
+            githubGistInput.value = githubGistId;
+            githubModal.classList.remove('hidden');
+            githubModal.classList.add('flex');
+        });
+
+        closeGithubModal.addEventListener('click', () => {
+            githubModal.classList.add('hidden');
+            githubModal.classList.remove('flex');
+        });
+
+        githubForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            githubPat = githubPatInput.value.trim();
+            githubGistId = githubGistInput.value.trim();
+
+            localStorage.setItem('starters_x_github_pat', githubPat);
+            localStorage.setItem('starters_x_github_gist', githubGistId);
+
+            if (githubPat) {
+                await syncWithGitHubGist();
+                document.getElementById('server-type-label').innerText = 'GitHub Server Active';
+            }
+
+            githubModal.classList.add('hidden');
+            githubModal.classList.remove('flex');
+        });
+
+        document.getElementById('sync-github-now-btn').addEventListener('click', async () => {
+            await syncWithGitHubGist();
+        });
+
+        // Profile Editing Modal
+        openProfileBtn.addEventListener('click', () => {
+            document.getElementById('edit-display-name').value = currentUserData.displayName || '';
+            document.getElementById('edit-username').value = currentUserData.username || '';
+            document.getElementById('edit-avatar-url').value = currentUserData.avatar?.startsWith('http') ? currentUserData.avatar : '';
+            profilePreviewAvatar.innerText = currentUserData.avatar || '🎃';
+
+            profileModal.classList.remove('hidden');
+            profileModal.classList.add('flex');
+        });
+
+        closeProfileModal.addEventListener('click', () => {
+            profileModal.classList.add('hidden');
+            profileModal.classList.remove('flex');
+        });
+
+        document.querySelectorAll('#preset-avatars button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const av = btn.getAttribute('data-avatar');
+                profilePreviewAvatar.innerText = av;
+                document.getElementById('edit-avatar-url').value = '';
+            });
+        });
+
+        profileForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newName = document.getElementById('edit-display-name').value.trim();
+            const newUsername = document.getElementById('edit-username').value.trim().toLowerCase().replace('@', '');
+            const avatarUrl = document.getElementById('edit-avatar-url').value.trim();
+
+            let avatar = profilePreviewAvatar.innerText;
+            if (avatarUrl) avatar = avatarUrl;
+
+            currentUserData.displayName = newName;
+            currentUserData.username = newUsername;
+            currentUserData.avatar = avatar;
+
+            const userDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUserData.username);
+            await setDoc(userDocRef, currentUserData, { merge: true });
+
+            localStorage.setItem('starters_halloween_user_' + currentUser.uid, JSON.stringify(currentUserData));
+            updateProfileUI();
+            showToast('Профиль обновлен! ✨');
+
+            profileModal.classList.add('hidden');
+            profileModal.classList.remove('flex');
+        });
+
+        // Create Group or Channel Menu Trigger
+        openCreateMenuBtn.addEventListener('click', () => {
+            const choice = confirm("Нажмите OK для создания ГРУППЫ или Cancel (Отмена) для создания КАНАЛА");
+            const type = choice ? 'group' : 'channel';
+
+            document.getElementById('create-type').value = type;
+            document.getElementById('create-modal-title').innerText = type === 'group' ? 'Создать Группу 👥' : 'Создать Канал 📢';
+
+            createModal.classList.remove('hidden');
+            createModal.classList.add('flex');
+        });
+
+        closeCreateModal.addEventListener('click', () => {
+            createModal.classList.add('hidden');
+            createModal.classList.remove('flex');
+        });
+
+        createGroupChannelForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const type = document.getElementById('create-type').value;
+            const name = document.getElementById('create-name').value.trim();
+            const desc = document.getElementById('create-desc').value.trim();
+
+            const docId = type + '_' + Date.now();
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'chats', docId);
+
+            const newChat = {
+                id: docId,
+                type: type,
+                title: name,
+                description: desc,
+                creator: currentUserData.username,
+                avatar: type === 'group' ? '👥' : '📢',
+                createdAt: new Date().toISOString()
+            };
+
+            await setDoc(ref, newChat);
+
+            showToast(`${type === 'group' ? 'Группа' : 'Канал'} "${name}" создана! 🎉`);
+            createModal.classList.add('hidden');
+            createModal.classList.remove('flex');
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            if (currentUser) localStorage.removeItem('starters_halloween_user_' + currentUser.uid);
+            location.reload();
+        });
+
+        // Tab Filtering
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => {
+                    b.classList.remove('bg-orange-500', 'text-white', 'shadow');
+                    b.classList.add('hover:text-slate-200');
+                });
+                btn.classList.add('bg-orange-500', 'text-white', 'shadow');
+                activeTab = btn.getAttribute('data-tab');
+                renderChatList();
+            });
+        });
+
+        function loadAllChatsAndChannels() {
+            if (!currentUser) return;
+
+            const chatsCol = collection(db, 'artifacts', appId, 'public', 'data', 'chats');
+            const usersCol = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+
+            onSnapshot(chatsCol, (snapshot) => {
+                const groupChannels = [];
+                snapshot.forEach(docSnap => {
+                    groupChannels.push(docSnap.data());
+                });
+
+                onSnapshot(usersCol, (uSnapshot) => {
+                    const directUsers = [];
+                    uSnapshot.forEach(uSnap => {
+                        const u = uSnap.data();
+                        if (u.username !== currentUserData.username) {
+                            directUsers.push({
+                                id: 'direct_' + u.username,
+                                type: 'direct',
+                                title: u.displayName || '@' + u.username,
+                                username: u.username,
+                                avatar: u.avatar || '🎃'
+                            });
+                        }
+                    });
+
+                    allItemsList = [...directUsers, ...groupChannels];
+                    renderChatList();
+                });
+            });
+        }
+
+        function renderChatList() {
+            chatListEl.innerHTML = '';
+            const searchVal = searchChatInput.value.toLowerCase();
+
+            const filtered = allItemsList.filter(item => {
+                const matchesSearch = item.title.toLowerCase().includes(searchVal);
+                if (!matchesSearch) return false;
+
+                if (activeTab === 'all') return true;
+                return item.type === activeTab;
+            });
+
+            if (filtered.length === 0) {
+                chatListEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">Ничего не найдено 🕸️</div>`;
+                return;
+            }
+
+            filtered.forEach(item => {
+                const isActive = activeChat && activeChat.id === item.id;
+                const chatEl = document.createElement('div');
+                chatEl.className = `flex items-center space-x-3 p-3.5 cursor-pointer transition hover:bg-spooky-hover ${isActive ? 'bg-spooky-hover border-l-4 border-orange-500' : ''}`;
+                
+                chatEl.onclick = () => openChat(item);
+
+                let avatarHTML = `<div class="w-11 h-11 rounded-full bg-purple-950 border border-orange-500/30 flex items-center justify-center font-bold text-orange-400 text-base">${item.avatar || '🎃'}</div>`;
+                if (item.avatar && item.avatar.startsWith('http')) {
+                    avatarHTML = `<img src="${item.avatar}" class="w-11 h-11 rounded-full object-cover border border-orange-500/30">`;
+                }
+
+                chatEl.innerHTML = `
+                    <div class="flex-shrink-0">${avatarHTML}</div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline mb-0.5">
+                            <h3 class="font-medium text-slate-100 text-sm truncate">${item.title}</h3>
+                            <span class="text-[10px] text-orange-400/70 uppercase">${item.type}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 truncate">${item.description || 'Нажмите чтобы открыть чат'}</p>
+                    </div>
+                `;
+                chatListEl.appendChild(chatEl);
+            });
+        }
+
+        searchChatInput.addEventListener('input', () => renderChatList());
+
+        function openChat(item) {
+            activeChat = item;
+            activeChatTitle.innerText = item.title;
+            activeChatStatus.innerText = item.type === 'channel' ? 'Канал • Публикации' : item.type === 'group' ? 'Группа' : 'Личные сообщения';
+
+            if (item.avatar && item.avatar.startsWith('http')) {
+                activeChatAvatar.innerHTML = `<img src="${item.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                activeChatAvatar.innerText = item.avatar || '🎃';
+            }
+
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+
+            renderChatList();
+            subscribeToMessages();
+
+            if (window.innerWidth < 768) {
+                sidebar.classList.add('hidden');
+            }
+        }
+
+        backBtn.addEventListener('click', () => {
+            sidebar.classList.remove('hidden');
+        });
+
+        function subscribeToMessages() {
+            if (messagesUnsubscribe) messagesUnsubscribe();
+            if (!activeChat) return;
+
+            let roomId = activeChat.id;
+            if (activeChat.type === 'direct') {
+                roomId = [currentUserData.username, activeChat.username].sort().join('_room_');
+            }
+
+            const messagesCol = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId, 'messages');
+
+            messagesUnsubscribe = onSnapshot(messagesCol, (snapshot) => {
+                const messages = [];
+                snapshot.forEach(docSnap => {
+                    messages.push({ id: docSnap.id, ...docSnap.data() });
+                });
+
+                messages.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+                renderMessages(messages);
+            });
+        }
+
+        function renderMessages(messages) {
+            messagesContainer.innerHTML = '';
+
+            if (messages.length === 0) {
+                messagesContainer.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-slate-500 text-sm space-y-2">
+                        <p class="spooky-font text-lg text-orange-400">Здесь пока нет сообщений... 🕸️</p>
+                    </div>
+                `;
+                return;
+            }
+
+            messages.forEach(msg => {
+                appendSingleMessage(msg);
+            });
+
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function appendSingleMessage(msg) {
+            const isOut = msg.sender === currentUserData.username;
+            const timeStr = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...';
+
+            const msgWrapper = document.createElement('div');
+            msgWrapper.className = `flex ${isOut ? 'justify-end' : 'justify-start'}`;
+
+            msgWrapper.innerHTML = `
+                <div class="max-w-[80%] sm:max-w-[65%] rounded-2xl px-4 py-2.5 text-sm shadow-lg leading-relaxed ${
+                    isOut ? 'bg-spooky-bubbleOut text-white border border-orange-500/20 rounded-br-xs' : 'bg-spooky-bubbleIn text-slate-100 border border-purple-500/20 rounded-bl-xs'
+                }">
+                    ${!isOut ? `<div class="text-[11px] font-bold text-orange-400 mb-0.5">@${msg.sender}</div>` : ''}
+                    <div class="whitespace-pre-wrap">${escapeHTML(msg.text)}</div>
+                    <div class="flex items-center justify-end space-x-1 mt-1 text-[10px] opacity-70">
+                        <span>${timeStr}</span>
+                        ${isOut ? `<i class="fa-solid fa-check text-orange-400"></i>` : ''}
+                    </div>
+                </div>
+            `;
+            messagesContainer.appendChild(msgWrapper);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !activeChat || !currentUserData) return;
+
+            let roomId = activeChat.id;
+            if (activeChat.type === 'direct') {
+                roomId = [currentUserData.username, activeChat.username].sort().join('_room_');
+            }
+
+            const messageData = {
+                sender: currentUserData.username,
+                text: text,
+                createdAt: Date.now(),
+                roomId: roomId
+            };
+
+            messageInput.value = '';
+
+            // 1. Send via Cloud DB
+            const messagesCol = collection(db, 'artifacts', appId, 'public', 'data', 'rooms', roomId, 'messages');
+            await addDoc(messagesCol, messageData);
+
+            // 2. Try P2P PeerJS Direct Send if recipient is connected
+            if (peer && activeChat.type === 'direct') {
+                try {
+                    const recipientPeerId = `starters_x_${activeChat.username}`;
+                    const conn = peer.connect(recipientPeerId);
+                    conn.on('open', () => {
+                        conn.send({ type: 'CHAT_MESSAGE', ...messageData });
+                    });
+                } catch (e) {
+                    console.log("P2P send fallback:", e);
+                }
+            }
+
+            // 3. GitHub Gist Backup Sync (if Token configured)
+            if (githubPat) {
+                syncWithGitHubGist({ lastMessage: messageData, timestamp: Date.now() });
+            }
+        }
+
+        messageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendMessage();
+        });
+
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Emoji Picker Toggle
+        const emojiBtn = document.getElementById('emoji-btn');
+        const emojiPicker = document.getElementById('emoji-picker');
+
+        emojiBtn.addEventListener('click', () => emojiPicker.classList.toggle('hidden'));
+        document.querySelectorAll('.emoji-opt').forEach(opt => {
+            opt.addEventListener('click', () => {
+                messageInput.value += opt.innerText;
+                emojiPicker.classList.add('hidden');
+                messageInput.focus();
+            });
+        });
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        // Initialize Background Particles Canvas and Authentication
+        initHalloweenCanvas();
+        initAuth();
+    </script>
+</body>
+</html>
+
